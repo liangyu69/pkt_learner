@@ -1,6 +1,5 @@
 # PKT_Learner
-一个用于学习 TCP/IP 协议的抓包小工具。
-
+A packet capture tool for learning computer network principles
 ## compile
 
 ```bash
