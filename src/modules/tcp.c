@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <arpa/inet.h>
 #include <linux/ip.h>
-#include <linux/tcp.h>
 #include <sys/types.h>
 #include<netinet/if_ether.h>
 #include"tcp.h"
@@ -20,7 +19,7 @@ void packet_handler(__u_char*args,const struct pcap_pkthdr*header,const __u_char
     
     unsigned int ip_header_len=ip->ihl*4;
     // 2. 定位 TCP 头起始位置（跳过 IP 头）
-    struct tcphdr *tcp = (struct tcphdr *)(packet + 14 + ip_header_len);
+    mytcp *tcp = (mytcp *)(packet + 14 + ip_header_len);
     
     // 3. 从 TCP 头里读出序列号和确认号（注意：都是网络序，要转主机序）
     uint16_t src_port = ntohs(tcp->source);
@@ -28,15 +27,26 @@ void packet_handler(__u_char*args,const struct pcap_pkthdr*header,const __u_char
     uint32_t seq = ntohl(tcp->seq);
     uint32_t ack_seq = ntohl(tcp->ack_seq);
 
-    // 4. 判断标志位
-    int is_syn = tcp->syn;
-    int is_ack = tcp->ack;
-    int is_fin = tcp->fin;
+    // 解析数据偏移（高4位）
+    uint8_t data_offset = (tcp->doff_res >> 4) * 4;
+    
+    // 解析标志位
+    int fin = (tcp->flags & 0x01) ? 1 : 0;
+    int syn = (tcp->flags & 0x02) ? 1 : 0;
+    int rst = (tcp->flags & 0x04) ? 1 : 0;
+    int psh = (tcp->flags & 0x08) ? 1 : 0;
+    int ack = (tcp->flags & 0x10) ? 1 : 0;
+    int urg = (tcp->flags & 0x20) ? 1 : 0;
+    
+    uint16_t window = ntohs(tcp->window);
     
     
     // 6. 打印完整信息
-    printf("TCP: %s:%d -> %s:%d, Seq=%u, Ack=%u, SYN=%d, ACK=%d, FIN=%d\n",
-       src_ip, src_port, dst_ip, dst_port, seq, ack_seq, is_syn, is_ack, is_fin);
+    printf("TCP: %s:%d -> %s:%d\n", src_ip, src_port, dst_ip, dst_port);
+    printf("  Seq=%u, Ack=%u, Data Offset=%d\n", seq, ack_seq, data_offset);
+    printf("  Flags: FIN=%d, SYN=%d, RST=%d, PSH=%d, ACK=%d, URG=%d\n", 
+           fin, syn, rst, psh, ack, urg);
+    printf("  Window=%u\n", window);
 }
 
 // TCP学习入口函数
